@@ -39,7 +39,18 @@ if not os.path.exists(LEDGER_FILE) or os.stat(LEDGER_FILE).st_size == 0:
 # Load data into live tracking session states
 @st.cache_data(ttl=1)  # Refresh cache instantly to prevent stale views
 def load_db(file_path):
-    return pd.read_csv(file_path)
+    try:
+        # Check if the file is completely empty
+        if os.path.exists(file_path) and os.stat(file_path).st_size == 0:
+            if "members.csv" in file_path:
+                return pd.DataFrame(columns=["Account_No", "Full_Name", "Phone", "Status"])
+            else:
+                return pd.DataFrame(columns=["ID", "Timestamp", "Account_No", "Member_Name", "Module", "Transaction_Type", "Amount_UGX", "Reference"])
+        return pd.read_csv(file_path)
+    except Exception:
+        if "members.csv" in file_path:
+            return pd.DataFrame(columns=["Account_No", "Full_Name", "Phone", "Status"])
+        return pd.DataFrame(columns=["ID", "Timestamp", "Account_No", "Member_Name", "Module", "Transaction_Type", "Amount_UGX", "Reference"])
 
 members_df = load_db(MEMBERS_FILE)
 ledger_df = load_db(LEDGER_FILE)
