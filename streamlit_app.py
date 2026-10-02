@@ -2,86 +2,74 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. Page Configuration
-st.set_page_config(page_title="Global GDP Dashboard", layout="wide")
-st.title("🌐 Global GDP Analytics Dashboard")
-st.write("Explore historical gross domestic product data across countries.")
+# 1. Page & Branding Setup
+st.set_page_config(page_title="Kigyende United Traders", layout="wide")
+st.title("📊 Kigyende United Traders - Management Portal")
+st.write("Internal business tracking, sales summaries, and operational analytics dashboard.")
 
-# 2. Fetch Sample GDP Data from World Bank via URL
+# 2. Creating Your Business Dataset
 @st.cache_data
-@st.cache_data
-def load_data():
-    try:
-        # Try to pull online first
-        url = "https://githubusercontent.com"
-        df = pd.read_csv(url)
-    except Exception:
-        # Fallback: Create mock realistic data instantly if the network fails
-        import numpy as np
-        countries_list = ["United States", "China", "Japan", "Germany", "United Kingdom", "India", "France", "Uganda"]
-        years = list(range(1960, 2024))
-        mock_records = []
-        for c in countries_list:
-            base_gdp = 1e10 if c != "United States" else 5e11
-            if c == "Uganda": base_gdp = 5e8
-            for y in years:
-                val = base_gdp * ((1.04 + np.random.uniform(-0.02, 0.03)) ** (y - 1960))
-                mock_records.append([c, c[:3].upper(), y, val])
-        df = pd.DataFrame(mock_records, columns=['Country Name', 'Country Code', 'Year', 'Value'])
-    
-    df.columns = ['Country Name', 'Country Code', 'Year', 'Value']
-    return df
-
-
-try:
-    data = load_data()
-
-    # 3. Sidebar Filters
-    st.sidebar.header("Dashboard Filters")
-    
-    # Country Selection
-    countries = sorted(data['Country Name'].unique())
-    selected_country = st.sidebar.selectbox("Select a Country or Region", countries, index=countries.index("United States") if "United States" in countries else 0)
-
-    # Date Range Selection
-    min_year = int(data['Year'].min())
-    max_year = int(data['Year'].max())
-    year_range = st.sidebar.slider("Select Year Range", min_year, max_year, (2000, max_year))
-
-    # 4. Filter Dataset based on selections
-    filtered_data = data[
-        (data['Country Name'] == selected_country) & 
-        (data['Year'] >= year_range[0]) & 
-        (data['Year'] <= year_range[1])
+def load_traders_data():
+    # You can later replace this section by uploading an actual Excel/CSV file!
+    # For now, we seed realistic operational data for a Ugandan trading enterprise
+    data_records = [
+        {"Month": "Jan", "Category": "Produce Sales", "Amount_UGX": 4500000, "Type": "Revenue"},
+        {"Month": "Jan", "Category": "Transport & Logistics", "Amount_UGX": 1200000, "Type": "Expense"},
+        {"Month": "Feb", "Category": "Produce Sales", "Amount_UGX": 5200000, "Type": "Revenue"},
+        {"Month": "Feb", "Category": "Store Rent & Utilities", "Amount_UGX": 800000, "Type": "Expense"},
+        {"Month": "Mar", "Category": "Wholesale Distribution", "Amount_UGX": 6100000, "Type": "Revenue"},
+        {"Month": "Mar", "Category": "Supplier Payouts", "Amount_UGX": 3000000, "Type": "Expense"},
+        {"Month": "Apr", "Category": "Produce Sales", "Amount_UGX": 4800000, "Type": "Revenue"},
+        {"Month": "Apr", "Category": "Transport & Logistics", "Amount_UGX": 1100000, "Type": "Expense"},
+        {"Month": "May", "Category": "Wholesale Distribution", "Amount_UGX": 7300000, "Type": "Revenue"},
+        {"Month": "May", "Category": "Stock Replenishment", "Amount_UGX": 3500000, "Type": "Expense"},
     ]
+    return pd.DataFrame(data_records)
 
-    # 5. Display Key Metrics
-    if not filtered_data.empty:
-        latest_year = filtered_data['Year'].max()
-        latest_gdp = filtered_data[filtered_data['Year'] == latest_year]['Value'].values[0]
+df = load_traders_data()
+
+# 3. Sidebar Business Navigation
+st.sidebar.header("📁 Navigation & Filters")
+view_option = st.sidebar.radio("Select View", ["Overview Dashboard", "Detailed Financial Ledger"])
+selected_type = st.sidebar.multiselect("Filter Transaction Type", ["Revenue", "Expense"], default=["Revenue", "Expense"])
+
+# Filter dataframe based on user choice
+filtered_df = df[df['Type'].isin(selected_type)]
+
+# 4. Content Presentation
+if view_option == "Overview Dashboard":
+    # Calculate key metrics
+    total_rev = df[df['Type'] == "Revenue"]['Amount_UGX'].sum()
+    total_exp = df[df['Type'] == "Expense"]['Amount_UGX'].sum()
+    net_profit = total_rev - total_exp
+    
+    # Display performance indicators
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="Total Gross Revenue", value=f"{total_rev:,} UGX")
+    with col2:
+        st.metric(label="Total Operating Expenses", value=f"{total_exp:,} UGX")
+    with col3:
+        st.metric(label="Net Estimated Margin", value=f"{net_profit:,} UGX")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(label=f"GDP in {latest_year}", value=f"${latest_gdp:,.0f}")
-        with col2:
-            st.metric(label="Data Points Available", value=len(filtered_data))
-
-        # 6. Interactive Plotly Line Chart
-        fig = px.line(
-            filtered_data, 
-            x='Year', 
-            y='Value', 
-            title=f"GDP Trend for {selected_country} ({year_range[0]} - {year_range[1]})",
-            labels={'Value': 'GDP (Current USD)', 'Year': 'Year'},
-            markers=True
+    st.write("---")
+    
+    # Performance Visualization
+    if not filtered_df.empty:
+        fig = px.bar(
+            filtered_df, 
+            x="Month", 
+            y="Amount_UGX", 
+            color="Category",
+            barmode="group",
+            title="Monthly Cash Flow breakdown (UGX)",
+            labels={"Amount_UGX": "Value (UGX)", "Month": "Month"}
         )
         st.plotly_chart(fig, use_container_width=True)
-
-        # 7. Raw Data Table
-        with st.expander("View Raw Data Table"):
-            st.dataframe(filtered_data.sort_values(by="Year", ascending=False), use_container_width=True)
     else:
-        st.warning("No data available for the selected filters.")
+        st.warning("Please select at least one transaction type in the sidebar.")
 
-except Exception as e:
-    st.error(f"Failed to load data: {e}")
+elif view_option == "Detailed Financial Ledger":
+    st.subheader("Transaction Log Database")
+    st.write("Below is the recorded log entries for Kigyende United Traders.")
+    st.dataframe(filtered_df, use_container_width=True)
